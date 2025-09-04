@@ -1,0 +1,10 @@
+# The master index of all public applications for the Contextually platform.
+# This file is used by the `cx app search` command.
+
+applications:
+  - id: "official/github-repo-manager"
+    name: "GitHub Repository Manager"
+    version: "1.0.0" # This should match the latest release tag
+    description: "A suite of flows for managing GitHub repository settings, labels, and collaborators."
+    author: "flowcontextually"
+    tags: [github, git, devops, automation]

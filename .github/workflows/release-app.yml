@@ -1,0 +1,82 @@
+name: Release Application Package
+
+on:
+  push:
+    tags:
+      # Trigger on tags that follow the convention: <namespace>-<name>-v<version>
+      # e.g., official-github-repo-manager-v1.0.0
+      - "*-*-v*"
+
+jobs:
+  build-and-release:
+    name: Build and Release Application
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required to create the release and upload assets
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install yq for YAML parsing
+        run: sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && sudo chmod +x /usr/bin/yq
+
+      - name: Parse tag and set up variables
+        id: vars
+        shell: bash
+        run: |
+          TAG=${{ github.ref_name }}
+          # Use sed to handle potential multi-part names (e.g., github-repo-manager)
+          NAMESPACE=$(echo $TAG | cut -d'-' -f1)
+          VERSION=$(echo $TAG | sed -E 's/.*-(v[0-9]+\.[0-9]+\.[0-9]+.*)/\1/')
+          NAME=$(echo $TAG | sed -E "s/^${NAMESPACE}-//" | sed -E "s/-${VERSION}$//")
+          
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "namespace=$NAMESPACE" >> $GITHUB_OUTPUT
+          echo "name=$NAME" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          
+          echo "release_name=Application: ${NAMESPACE}/${NAME}@${VERSION}" >> $GITHUB_OUTPUT
+          echo "app_path=${NAMESPACE}/${NAME}" >> $GITHUB_OUTPUT
+          echo "asset_name=${NAME}-${VERSION}.tar.gz" >> $GITHUB_OUTPUT
+
+      - name: Verify application directory exists
+        run: |
+          echo "Verifying path: ${{ steps.vars.outputs.app_path }}"
+          if [ ! -d "${{ steps.vars.outputs.app_path }}" ]; then
+            echo "::error::Directory for tag '${{ github.ref_name }}' not found at path '${{ steps.vars.outputs.app_path }}'"
+            exit 1
+          fi
+
+      - name: Verify version consistency
+        shell: bash
+        run: |
+          APP_MANIFEST="${{ steps.vars.outputs.app_path }}/app.cx.yaml"
+          echo "Checking version in ${APP_MANIFEST}"
+
+          # Read the version from the YAML file using yq
+          FILE_VERSION="v$(yq e '.version' ${APP_MANIFEST})"
+          TAG_VERSION="${{ steps.vars.outputs.version }}"
+
+          echo "Version in tag: ${TAG_VERSION}"
+          echo "Version in file: ${FILE_VERSION}"
+
+          if [ "${FILE_VERSION}" != "${TAG_VERSION}" ]; then
+            echo "::error::Version mismatch! Git tag is '${TAG_VERSION}' but app.cx.yaml version is '${FILE_VERSION}'."
+            exit 1
+          fi
+
+      - name: Create Tarball Archive of the Application
+        shell: bash
+        run: |
+          echo "Creating archive ${{ steps.vars.outputs.asset_name }} from directory ${{ steps.vars.outputs.app_path }}"
+          # Create a gzipped tarball of the specific application's directory
+          # The -C flag changes directory, so we package the contents of the app folder, not the folder itself.
+          tar -czvf ${{ steps.vars.outputs.asset_name }} -C ${{ steps.vars.outputs.app_path }} .
+
+      - name: Create GitHub Release and Upload Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.vars.outputs.tag }}
+          name: ${{ steps.vars.outputs.release_name }}
+          files: ${{ steps.vars.outputs.asset_name }}

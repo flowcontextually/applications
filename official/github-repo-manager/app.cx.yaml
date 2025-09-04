@@ -1,0 +1,18 @@
+name: github-repo-manager
+namespace: official
+version: 1.0.0
+description: "A suite of flows for managing GitHub repository settings, labels, and collaborators."
+author: "flowcontextually"
+tags: [github, git, devops, automation]
+
+dependencies:
+  blueprints:
+    # This application requires a GitHub blueprint.
+    # We specify a known good version.
+    - "community/github@v0.1.0"
+
+required_connections:
+  - id: "github_api"
+    description: "A connection to the GitHub API. This can be a public (no-auth) or authenticated connection."
+    # The installer will suggest this blueprint to the user.
+    blueprint: "community/github@v0.1.0"

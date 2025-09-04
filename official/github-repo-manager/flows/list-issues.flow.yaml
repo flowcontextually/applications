@@ -1,0 +1,16 @@
+name: "List Open Issues for a Repository"
+description: "Fetches a list of open issues for a specified GitHub repository."
+
+steps:
+  - id: "list_issues_step"
+    name: "List Repository Issues"
+    # This uses the logical connection ID defined in app.cx.yaml
+    connection_source: "{{ connections.github_api }}"
+    run:
+      action: "run_declarative_action"
+      # Assumes a 'listIssuesForRepo' action exists in the GitHub blueprint
+      template_key: "listIssuesForRepo"
+      context:
+        # These values will be provided by the user via `flow run` arguments
+        owner: "{{ script_input.owner }}"
+        repo: "{{ script_input.repo }}"
